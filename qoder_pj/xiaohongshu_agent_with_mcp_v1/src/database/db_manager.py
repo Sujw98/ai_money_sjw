@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
 from src.models.db_models import Base
+from src.utils.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class DatabaseManager:
             pool_size: 连接池大小
             max_overflow: 最大溢出连接数
         """
+        setting = get_settings()
         self.db_url = db_url
         self.engine = create_engine(
             db_url,
@@ -30,7 +32,7 @@ class DatabaseManager:
             pool_size=pool_size,
             max_overflow=max_overflow,
             pool_pre_ping=True,  # 连接前检查
-            echo=False  # 不打印SQL语句（生产环境）
+            echo=setting.log_sql  # 不打印SQL语句（生产环境）
         )
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         logger.info(f"数据库连接已建立: {db_url}")

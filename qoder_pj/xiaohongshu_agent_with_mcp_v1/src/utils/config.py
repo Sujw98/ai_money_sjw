@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     # 系统配置
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     max_retries: int = Field(default=3, alias="MAX_RETRIES")
-    
+    log_sql: bool = Field(default=False, alias="LOG_SQL")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
