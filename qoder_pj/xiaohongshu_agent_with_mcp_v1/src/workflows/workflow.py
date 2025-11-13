@@ -15,6 +15,7 @@ from src.models.agent_models import (
 from src.database.db_manager import get_db_manager
 from src.database.dao import TopicDAO, PublishRecordDAO
 from src.models.db_models import TopicStatus, PublishStatus
+from src.utils.mcp_helper import search_feeds, publish_content
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -129,9 +130,19 @@ class ContentWorkflow:
                 top_n=10
             )
             
-            # 注意：这里需要传入MCP搜索结果
-            # 实际使用时，应该先调用MCP的search_feeds，然后将结果传入
-            search_results = state.get("search_results", [])
+            # 调用 MCP 搜索小红书内容
+            logger.info(f"调用MCP搜索小红书，关键词: {topic_info.keywords}")
+            try:
+                # 使用MCP辅助函数搜索
+                search_results = search_feeds(
+                    keyword=topic_info.keywords,
+                    filters={"sort_by": "综合"}
+                )
+                if not search_results:
+                    logger.warning("MCP搜索结果为空，可能需要先登录小红书")
+            except Exception as mcp_error:
+                logger.error(f"MCP搜索失败: {mcp_error}")
+                search_results = []
             
             output = self.inspiration_agent.run(inspiration_input, search_results)
             
@@ -218,16 +229,49 @@ class ContentWorkflow:
             if not optimized_content:
                 raise ValueError("缺少优化后的内容")
             
-            # 这里需要实际调用MCP的publish_content
-            # 暂时标记为待发布
+            # 调用 MCP 发布到小红书
             logger.info(f"准备发布内容: {optimized_content.title}")
             logger.info(f"标签: {', '.join(optimized_content.tags)}")
             
-            # 实际发布逻辑应该在这里通过MCP工具调用
-            # 这里先模拟成功
-            state["publish_success"] = True
-            state["publish_note_id"] = None  # 实际发布后会有
-            state["publish_error"] = None
+            try:
+                # 准备图片（需要至少1张）
+                import os
+                from pathlib import Path
+                images_dir = Path("assets/default_images")
+                images = []
+                
+                if images_dir.exists():
+                    for ext in ['*.jpg', '*.jpeg', '*.png']:
+                        images.extend([str(p.absolute()) for p in images_dir.glob(ext)])
+                
+                if not images:
+                    logger.warning("未找到图片，无法发布到小红书")
+                    logger.info("提示：请在 assets/default_images/ 目录添加至少1张图片")
+                    state["publish_success"] = False
+                    state["publish_error"] = "缺少图片文件"
+                else:
+                    # 使用MCP辅助函数发布
+                    result = publish_content(
+                        title=optimized_content.title,
+                        content=optimized_content.content,
+                        images=[images[0]],  # 使用第一张图片
+                        tags=optimized_content.tags
+                    )
+                    
+                    state["publish_success"] = result.get("success", False)
+                    state["publish_note_id"] = result.get("note_id")
+                    state["publish_error"] = result.get("error_message")
+                    
+                    if result.get("success"):
+                        logger.info(f"发布成功！笔记ID: {result.get('note_id')}")
+                    else:
+                        logger.warning(f"发布失败: {result.get('error_message')}")
+                
+            except Exception as mcp_error:
+                logger.error(f"MCP发布失败: {mcp_error}")
+                state["publish_success"] = False
+                state["publish_note_id"] = None
+                state["publish_error"] = str(mcp_error)
             
             state["current_step"] = "publish_completed"
             return state
