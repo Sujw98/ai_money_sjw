@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     max_retries: int = Field(default=3, alias="MAX_RETRIES")
     log_sql: bool = Field(default=False, alias="LOG_SQL")
 
+    # MCP配置
+    xiaohongshu_mcp_url: str = Field(default="http://115.190.200.210:18060/mcp", alias="XIAOHONGSHU_MCP_URL")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
