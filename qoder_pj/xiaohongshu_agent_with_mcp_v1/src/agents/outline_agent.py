@@ -4,7 +4,7 @@
 import logging
 from typing import Optional
 from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from src.models.agent_models import OutlineInput, OutlineOutput, TopicInfo
 from src.database.db_manager import get_db_manager
 from src.database.dao import OutlineDAO, TopicDAO
